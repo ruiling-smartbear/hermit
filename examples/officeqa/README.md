@@ -62,15 +62,6 @@ the mean of `rollout.mean_score` over the steps of its run's `steps.jsonl` (step
 smoke on a few questions: the folder's `smoke_codex.yaml`, after `hermit check --config ...`
 ([walkthrough](../../docs/recipes/officeqa.md#check-train-evaluate)).
 
-ReHarness runs through its launcher: it puts the embedding model behind a loopback relay for the adapter's reader
-(whose sandbox has no keys), writes `reharness/seed_adapter/` and starts `hermit train`, `eval` or `check` on
-`reharness/<config>.yaml`; `launch.sh smoke check --no-probe`, `launch.sh smoke` and `launch.sh smoke eval` are its
-check and smoke, `launch.sh run` and `launch.sh run eval` the train/test split (the 50 as one stream, then its bank
-on the 172). The [recipe](../../docs/recipes/officeqa.md#reharness) explains the two protocols. Harness² runs
-through its launcher too, which writes the stream's order and starts the editors' wire meter
-([`harness2_stream/`](harness2_stream/)). Meta-Harness Adapter runs in the Codex harness only;
-[`meta_harness_adapter/`](meta_harness_adapter/) describes its configs and records.
-
 #### GPT-5.6-Luna with Codex CLI 0.164.0
 
 Each `*_luna.yaml` is the Flash-row config above with the models changed and nothing else. The acting model runs on
