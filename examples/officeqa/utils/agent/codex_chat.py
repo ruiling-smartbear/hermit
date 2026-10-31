@@ -229,7 +229,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--concurrency", type=int, default=16)
     parser.add_argument("--timeout", type=float, default=3000, help="seconds per Codex session")
-    parser.add_argument("--log-dir", default=os.path.expanduser("~/albz/officeqa-luna/relay"))
+    parser.add_argument("--log-dir", default=os.path.expanduser("~/.cache/hermit/officeqa-codex-login/relay"))
     args = parser.parse_args()
     serve(Relay(Path(args.log_dir), args.concurrency, args.timeout), args.port)
 

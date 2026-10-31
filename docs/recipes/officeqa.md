@@ -117,10 +117,11 @@ SkillOpt its best skill, handed back as is (`promote_final: false`).
 
 ## Full runs
 
-Each method folder has four configs, each with its own run name and adapter tree, so runs can train side by side;
-do not mix their run-name or tree settings. All use the `prompt-only@1.0` template, start from
-`../utils/seed_adapter` and evaluate three passes per test question. The full runs run eight rollouts at a time, the
-smoke runs four.
+Each method folder has six configs, each with its own run name and adapter tree, so runs can train side by side;
+do not mix their run-name or tree settings. All use the `prompt-only@1.0` template and start from
+`../utils/seed_adapter`; all but the Flash-row and GPT-5.6-Luna configs (`run_codex_flash.yaml`,
+`run_codex_luna.yaml`: one pass) evaluate three passes per test question. The full runs run eight rollouts at a
+time, the smoke runs four.
 
 | Config | Harness | Train / val / test | `step_size` | Epochs | Budget | `call_timeout_min` | `run_name` |
 |---|---|---|---|---|---|---|---|
@@ -134,6 +135,8 @@ smoke runs four.
 | `skillopt/run_codex.yaml` | Codex | 50 / 24 / 172 | 40 | 4 | none | 360 | `codex-skillopt` |
 | `gepa/run_codex_flash.yaml` | Codex 0.162 | 50 / 24 / 172 | 3 | 4 | none | 180 | `flash-codex-gepa` |
 | `skillopt/run_codex_flash.yaml` | Codex 0.162 | 50 / 24 / 172 | 40 | 4 | none | 360 | `flash-codex-skillopt` |
+| `gepa/run_codex_luna.yaml` | Codex 0.164, ChatGPT login | 50 / 24 / 172 | 3 | 4 | none | 180 | `luna-gepa` |
+| `skillopt/run_codex_luna.yaml` | Codex 0.164, ChatGPT login | 50 / 24 / 172 | 40 | 4 | none | 360 | `luna-skillopt` |
 
 `call_timeout_min` is the time, in minutes, the Trainer allows each Evolver call (setup, a step, finalize); Codex
 sessions are slower, so `run_codex.yaml` allows more. `gepa/run.yaml` uses GEPA's default reflection minibatch of 3
@@ -143,7 +146,11 @@ hyperparameters: 4 epochs of batches of 40 (2 steps each), minibatch 8, merge 8,
 validation gate, gated slow update, and meta skill, with `prompt_env: officeqa` and `trajectory_view: paper`.
 The two `run_codex_flash.yaml` configs are `run_codex.yaml` with GLM 5.3 Flash as the learner too, one evaluation
 pass, and the Codex 0.162.0 image (`OFFICEQA_CODEX_IMAGE=officeqa-codex:0.162.0`): the settings of
-[the Flash row](#the-flash-row), shared with the Harness² stream.
+[the Flash row](#the-flash-row), shared with the Harness² stream. The two `run_codex_luna.yaml` configs are
+`run_codex_flash.yaml` with the models changed (`codexplan/gpt-5.6-luna` acting on a ChatGPT login,
+`codexrelay/gpt-5.6-luna` learning through the relay, `llm.timeout` 3,600 s) and the Codex 0.164.0 image:
+[the Flash row with GPT-5.6-Luna](#the-flash-row-with-gpt-56-luna); Continual Harness's and ReHarness's
+`stream_codex_luna.yaml` likewise.
 [Harness²](../methods/harness2.md) has no training run: it processes the test questions as one stream, with Codex as
 the acting agent; see [`harness2_stream/`](https://github.com/Infini-AI-Lab/hermit/tree/main/examples/officeqa/harness2_stream) for its protocol and result.
 `skillopt/smoke.yaml` runs 4 training questions in 2 epochs of 2 steps. Run it first, then the full configs:
@@ -248,6 +255,31 @@ transcripts; a session that times out leaves none), about 200 tried the network 
 310 looked outside their workspace. None got anything: names did not resolve, the image has no curl or wget, and the
 container holds nothing else. The proxy let through only connections to the model provider and refused Codex's own
 to chatgpt.com, ab.chatgpt.com and api.github.com.
+
+### A model on a ChatGPT login
+
+For a model the ChatGPT login serves ([the Flash row with GPT-5.6-Luna](#the-flash-row-with-gpt-56-luna)) the image
+carries the machine's own standalone Codex, the proxy lets through chatgpt.com only, and the learners' calls go to a
+relay that answers each with one Codex session. `codex login` on the machine once; each session gets a fresh copy of
+`~/.codex/auth.json`, removed when it ends (`utils/agent/codex_login.py`). The proxy does not let auth.openai.com
+through, so no session can refresh, and thereby rotate, the login the machine's Codex holds: the login's access token
+must outlive the run (`python examples/officeqa/utils/agent/codex_login.py` prints when it expires, with the plan's
+latest usage). A file `PAUSE` beside the plan's report (`~/.cache/hermit/officeqa-codex-login/`) holds every new
+session; a number in `SLOTS` there caps how many run at once on the machine; a session the plan refuses is run again
+when its window resets, never scored.
+
+```bash
+cd examples/officeqa/utils/agent/docker
+cp -a ~/.codex/packages/standalone/releases/0.164.0-x86_64-unknown-linux-musl codex-standalone
+docker build -f Dockerfile.standalone -t officeqa-codex:0.164.0 .
+docker run -d --name oq-egress-chatgpt --restart unless-stopped --read-only --network bridge officeqa-codex:0.164.0 \
+  python3 -u /opt/egress_proxy.py 3128 chatgpt.com:443
+docker network connect oq-sandbox oq-egress-chatgpt
+cd -
+export OFFICEQA_CODEX_IMAGE=officeqa-codex:0.164.0 OFFICEQA_CODEX_PROXY=http://oq-egress-chatgpt:3128
+python examples/officeqa/utils/agent/codex_chat.py --port 3671 &      # the learners' relay: one Codex session per call,
+                                                                      # with the same image and proxy exported above
+```
 
 ## ReHarness
 
@@ -535,8 +567,11 @@ Paired per question, 95% bootstrap intervals; a method's four runs are averaged 
 The seven methods of the Flash row once more, with Codex 0.164.0 and GPT-5.6-Luna (reasoning effort medium) acting
 **and** learning on a machine's own ChatGPT login (a Codex plan) instead of GLM 5.3 Flash on Fireworks. The
 [example's results](https://github.com/Infini-AI-Lab/hermit/tree/main/examples/officeqa#results) have the table and
-what it shows; [`examples/officeqa/luna/`](https://github.com/Infini-AI-Lab/hermit/tree/main/examples/officeqa/luna)
-is the launcher, the one-time setup and the record of the runs. The data, the split, the seed skill, the judge, the
+what it shows; each method's `run_codex_luna.yaml` (`stream_codex_luna.yaml` for the Continual Harness and ReHarness
+streams) is its Flash-row config with the models changed, run with the same commands
+([Run](https://github.com/Infini-AI-Lab/hermit/tree/main/examples/officeqa#run); the image, the proxy and the
+learners' relay: [A model on a ChatGPT login](#a-model-on-a-chatgpt-login)). The data, the split, the seed skill, the
+judge, the
 Evolvers' parameters, the session limits (SkillOpt's 180 s × 24 sessions for the trainings and the reference
 evaluations, 3,600 s for the streams), the configured concurrency, ReHarness's embedding model (Qwen3-Embedding-8B on
 Fireworks behind its launcher's wire meter: the plan serves no embeddings) and the one test pass are the Flash row's;
@@ -551,8 +586,8 @@ after main (0d3df08) was merged in. What differs:
 | Harness² editors | Claude Code (`claude -p`) on GLM through a wire meter | Codex sessions (`harness2_stream/codex_proposer.py`) in hermit's sandbox, `sandbox.allow: [chatgpt.com]`, `evolver.params.backend: codex`, a tree of its own |
 | Codex | 0.162.0 (npm package), image `officeqa-codex:0.162.0` | the machine's standalone 0.164.0, pinned, image `officeqa-codex:0.164.0` (`utils/agent/docker/Dockerfile.standalone`) |
 | egress | `oq-egress`: api.fireworks.ai:443 only | `oq-egress-chatgpt`: chatgpt.com:443 only |
-| concurrency on the machine | each run's own | each SkillOpt-harness rollout and each training learner call also holds one of the machine's session slots (`luna/slots_ctl.py`) |
-| run names, workspaces | `flash-codex-gepa`/`-skillopt{,-r2,-r3,-r4}`, `ch-stream-s0`, `rh-stream-s0`, `h2-codex-s0`; `~/.cache/hermit/...` | `luna-gepa`/`-skillopt{,-r2,-r3,-r4}`, `luna-ch-s0`, `luna-rh-s0`, `luna-h2-s0`, `luna-reference`; `~/albz/officeqa-luna/cache/...` |
+| concurrency on the machine | each run's own | each SkillOpt-harness rollout and each training learner call also holds one of the machine's session slots (`codex_login.py`: a number in the file `SLOTS`, read at every try) |
+| run names, workspaces | `flash-codex-gepa`/`-skillopt{,-r2,-r3,-r4}`, `ch-stream-s0`, `rh-stream-s0`, `h2-codex-s0`; `~/.cache/hermit/...` | `luna-gepa`/`-skillopt{,-r2,-r3,-r4}` (the two reference evaluations under `luna-skillopt`), `luna-ch-s0`, `luna-rh-s0`, `luna-h2-s0`; `~/.cache/hermit/officeqa-codex-actor-luna` for the trainings and the reference evaluations, `officeqa-{ch,rh,h2}-codex-luna` for the streams |
 
 The model change cannot be separated from the second, third and fourth rows: they come with running GPT-5.6-Luna in
 Codex on the plan.
@@ -632,9 +667,14 @@ gains over the reference execution overlap GLM's intervals: they cannot be calle
   while the login was in a slow state (first replies a median 33–54 s, against 1.4–2.1 s afterwards) and learned
   from 0.8–2.1% timed-out rollouts; the second wave (`-r3`, `-r4`) from 0–3 timeouts; the eight evaluations of
   trained skills ran after the recovery with no timeouts. Two seed-validation rollouts of `luna-gepa` were lost to
-  "Selected model is at capacity" and scored as wrong, before the agents learned to run such a session again. The
-  record of the rate limit, the session slots that kept about sixty parallel sessions from returning, and the three
-  training batches discarded before them: [`luna/README.md`](https://github.com/Infini-AI-Lab/hermit/tree/main/examples/officeqa/luna#the-logins-rate-limit).
+  "Selected model is at capacity" and scored as wrong, before the agents learned to run such a session again. With
+  the eight trainings side by side and no limit (about sixty sessions at once) the backend answered 429 Too Many
+  Requests, first replies took a median 100–400 s and 32–45% of three successive batches' training rollouts timed
+  out; those batches were discarded. The runs behind the results held every SkillOpt-harness rollout and every
+  training learner call to one of a machine-wide number of session slots (`codex_login.py`, the file `SLOTS`), set by a
+  controller (not in the repository) that cut two slots on timeouts and added one after quiet minutes; the slots
+  kept the overload from returning but did not lower the timeout rate while the login was slow (4.4% at 2 slots,
+  4.6% at 3–5): its recovery did.
 - **Tokens, no prices** (the plan bills none; a session's count is Codex's input, cached included, plus output):
   3.4–4.0 M per 172-question evaluation; per training 4.1–4.5 M of training rollouts, 0.6–1.1 M of learner calls
   (GEPA 0.6–0.7 M, SkillOpt 1.0–1.1 M) and, the bulk of a training, the sessions the Evolver runs to score its

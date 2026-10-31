@@ -63,21 +63,28 @@ check and smoke. `run.yaml` is evaluated like the other methods (`reharness/runs
 harness only (`OFFICEQA_CODEX_IMAGE` set as for the other Codex configs);
 [`meta_harness_adapter/`](meta_harness_adapter/) describes its configs and records.
 
-The second row of Results, Codex with GPT-5.6-Luna on the machine's ChatGPT login, runs the same configs through
-[`luna/launch.sh`](luna/), which changes the models (`codexplan/gpt-5.6-luna` as the acting model; each learner call
-answered by one Codex session through a relay, `utils/agent/codex_chat.py`, with `llm.timeout` 3,600 s in place of
-the default 600 s; Harness²'s editors as Codex sessions), the Codex image and egress proxy (`OFFICEQA_CODEX_IMAGE`
-`officeqa-codex:0.164.0`, `OFFICEQA_CODEX_PROXY` to chatgpt.com only), the run names and where the sessions'
-workspaces go. [`luna/README.md`](luna/README.md) has the one-time setup (the image with the machine's standalone
-Codex, the egress proxy) and the record of the runs:
+The GPT-5.6-Luna column of Results: the same commands with each method's `run_codex_luna.yaml`
+(`stream_codex_luna.yaml` for the Continual Harness and ReHarness streams), its Flash-row config with the models
+changed and nothing else of the protocol. The acting model is Codex's built-in provider on the machine's ChatGPT
+login (backend `codexplan`: `codex login` once, no API key; [`utils/agent/codex_login.py`](utils/agent/codex_login.py)
+gives each session a fresh copy of the login, reads the plan's usage, holds sessions while a pause file exists and
+runs a session the plan refused again), and the learner is the same model behind a relay that answers each `llm`
+call with one Codex session ([`utils/agent/codex_chat.py`](utils/agent/codex_chat.py), backend `codexrelay`, started
+first); Harness²'s editors are Codex sessions
+([`harness2_stream/codex_proposer.py`](harness2_stream/codex_proposer.py)). The image holds the machine's own
+standalone Codex and the egress proxy lets through chatgpt.com only
+([recipe](../../docs/recipes/officeqa.md#a-model-on-a-chatgpt-login)):
 
 ```bash
-RELAY_PORT=3672 examples/officeqa/luna/launch.sh relay      # the trainings' learner relay (the streams' on 3671)
-examples/officeqa/luna/launch.sh none                       # no skill: skillopt/runs/luna-reference/eval/none
-examples/officeqa/luna/launch.sh initial                    # initial skill: skillopt/runs/luna-reference/eval/seed_adapter
-RELAY_PORT=3672 examples/officeqa/luna/launch.sh gepa 1     # ... gepa 4, skillopt 1 ... 4: one training, then its eval/final
-examples/officeqa/luna/launch.sh ch                         # the Continual Harness stream; `h2`: the Harness² stream
-MW_KEY_FILE=... WM_PORT=3691 examples/officeqa/luna/launch.sh rh   # the ReHarness stream (its embeddings stay on Fireworks)
+export OFFICEQA_CODEX_IMAGE=officeqa-codex:0.164.0 OFFICEQA_CODEX_PROXY=http://oq-egress-chatgpt:3128
+python examples/officeqa/utils/agent/codex_chat.py --port 3671 &                 # the learners' relay, same image and proxy
+hermit eval  --config examples/officeqa/skillopt/run_codex_luna.yaml --adapter none                   # no skill
+hermit eval  --config examples/officeqa/skillopt/run_codex_luna.yaml --adapter ../utils/seed_adapter  # initial skill
+hermit train --config examples/officeqa/gepa/run_codex_luna.yaml           # then hermit eval ... --adapter final, as above
+hermit train --config examples/officeqa/skillopt/run_codex_luna.yaml
+python examples/officeqa/continual_harness/make_seed.py && hermit train --config examples/officeqa/continual_harness/stream_codex_luna.yaml
+CONFIG=run_codex_luna.yaml examples/officeqa/harness2_stream/launch.sh                # Harness²: the editors as Codex sessions
+FIREWORKS_API_KEY=... WM_PORT=3601 examples/officeqa/reharness/launch.sh stream_codex_luna   # ReHarness: embeddings on Fireworks
 ```
 
 ## Results
@@ -143,7 +150,7 @@ data, split, seed skill, judge, parameters, stream order and one pass (Meta-Harn
 gain is the answer's form: a check of every answer finds the share with the right value at 0.66–0.71 in every cell of
 the column. What differs from the GLM
 column, the intervals, the paired differences and the check: the
-[recipe](../../docs/recipes/officeqa.md#the-flash-row-with-gpt-56-luna); [`luna/`](luna/) runs it.
+[recipe](../../docs/recipes/officeqa.md#the-flash-row-with-gpt-56-luna); the `*_luna.yaml` configs run it ([Run](#run)).
 
 ## Code
 
@@ -155,18 +162,16 @@ utils/agent/        OfficeQAAgent (agent.py): SkillOpt's rollout, direct or Code
                     codex_chat.py is the learners' relay, one Codex session per chat-completions call
 utils/prepare.py    tasks.jsonl, the splits, data.json and seed_adapter/      utils/judge.py   SkillOpt's exact match
 utils/task-info/    the task for the learner
-gepa/ skillopt/     smoke.yaml and run.yaml per method, smoke_codex.yaml and run_codex.yaml for the Codex harness;
-                    adapter/ is the skill run.yaml trained (direct chat), with its .hermit/CARD.md
+gepa/ skillopt/     smoke.yaml and run.yaml per method, smoke_codex.yaml and run_codex.yaml for the Codex harness,
+                    run_codex_flash.yaml and run_codex_luna.yaml for the two columns of Results; adapter/ is the
+                    skill run.yaml trained (direct chat), with its .hermit/CARD.md
 harness2_stream/    Harness² under the paper's protocol, by the upstream code, with Codex as the acting agent
                     (run_codex.yaml, slots_codex.yaml; utils/agent/codex_agent.py and codex_session.py; the
-                    harness2-codex template); launch.sh starts a stream
-reharness/          ReHarness: stream_codex.yaml (the 172 test questions as one stream, Codex as the acting agent),
+                    harness2-codex template); launch.sh starts a stream; run_codex_luna.yaml and codex_proposer.py:
+                    the editors as Codex sessions on a ChatGPT login (CONFIG=run_codex_luna.yaml launch.sh)
+reharness/          ReHarness: stream_codex.yaml (the 172 test questions as one stream, Codex as the acting agent;
+                    stream_codex_luna.yaml the same on the ChatGPT login),
                     run_codex_flash.yaml (the 50 as one stream, then the frozen bank on the 172), the direct-chat
                     smoke.yaml, run.yaml and stream.yaml; launch.sh starts the embedding relay and the command;
                     make_seed.py writes seed_adapter/, the initial skill over the reharness template
-luna/               the second results row: launch.sh runs each method's Flash-row config with Codex + GPT-5.6-Luna
-                    on the ChatGPT login (relay, none, initial, gepa N, skillopt N, ch, h2, rh, sweep);
-                    slots_ctl.py sets the machine's session slots from the trainings' timeouts and 429s; README.md
-                    is the setup and the record of the runs (harness2_stream/codex_proposer.py: Harness²'s editors
-                    as Codex sessions)
 ```

@@ -10,7 +10,11 @@
 #
 #   config: smoke, run, stream (direct chat: SkillOpt's rollout), stream_codex, run_codex_flash (Codex 0.162.0 in a
 #   container per session, the recipe's Flash row; needs the image, the network and the egress proxy of
-#   ../utils/agent/codex_session.py, OFFICEQA_CODEX_IMAGE default officeqa-codex:0.162.0)
+#   ../utils/agent/codex_session.py, OFFICEQA_CODEX_IMAGE default officeqa-codex:0.162.0), stream_codex_luna (the Flash
+#   row with GPT-5.6-Luna: the acting and learning model on the machine's ChatGPT login, the learners' relay
+#   ../utils/agent/codex_chat.py on 127.0.0.1:3671 started first with the same OFFICEQA_CODEX_IMAGE and
+#   OFFICEQA_CODEX_PROXY exported, which this launcher defaults to officeqa-codex:0.164.0 and the proxy to chatgpt.com
+#   for the run only)
 #
 #   ... launch.sh smoke check --no-probe          # hermit check on smoke.yaml (--no-probe skips its one model call)
 #   ... launch.sh smoke                           # hermit train on smoke.yaml
@@ -20,6 +24,7 @@
 #   ... launch.sh stream_codex                    # the same stream on the Flash row (Codex, no verdict to the learner)
 #   ... launch.sh stream_codex evolver.params.feedback=true trainer.run_name=rh-stream-s0-fb trainer.tree_dir=runs/trees/rh-stream-s0-fb
 #   ... launch.sh run_codex_flash && ... launch.sh run_codex_flash eval      # the Flash row's split: 50 as a stream, then the 172 once
+#   ... launch.sh stream_codex_luna               # the same stream with GPT-5.6-Luna on the ChatGPT login (the README's second column)
 #   ... launch.sh run trainer.run_name=paper-reharness-2    # overrides and options go to hermit as they are
 #
 # The key: FIREWORKS_API_KEY in the environment, else the file MW_KEY_FILE names (as the CL-Bench launchers read it);
@@ -31,9 +36,9 @@ set -eu -o pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 FRAMEWORK=$(cd "$HERE/../../.." && pwd)
 PY=${MW_FRAMEWORK_PYTHON:-$FRAMEWORK/.venv/bin/python}
-CONFIG=${1:?usage: launch.sh <smoke|run|stream|stream_codex|run_codex_flash> [train|eval|check] [hermit arguments...]}
-case "$CONFIG" in smoke|run|stream|stream_codex|run_codex_flash) ;;
-  *) echo "REFUSING: the config is smoke, run, stream, stream_codex or run_codex_flash, not '$CONFIG'"; exit 1;; esac
+CONFIG=${1:?usage: launch.sh <smoke|run|stream|stream_codex|run_codex_flash|stream_codex_luna> [train|eval|check] [hermit arguments...]}
+case "$CONFIG" in smoke|run|stream|stream_codex|run_codex_flash|stream_codex_luna) ;;
+  *) echo "REFUSING: the config is smoke, run, stream, stream_codex, run_codex_flash or stream_codex_luna, not '$CONFIG'"; exit 1;; esac
 shift
 COMMAND=train
 case "${1:-}" in train|eval|check) COMMAND=$1; shift;; esac
@@ -41,10 +46,14 @@ WM_PORT=${WM_PORT:?set WM_PORT, the port of the wire meter (3601, say)}
 export PYTHONPATH=$FRAMEWORK${PYTHONPATH:+:$PYTHONPATH}
 cd "$HERE"
 [ -f ../utils/tasks.jsonl ] || { echo "REFUSING: run ../utils/prepare.py first"; exit 1; }
-case "$CONFIG" in stream|stream_codex) [ "$COMMAND" != eval ] \
+case "$CONFIG" in stream|stream_codex|stream_codex_luna) [ "$COMMAND" != eval ] \
   || { echo "REFUSING: $CONFIG.yaml has no test split; its number is the mean of rollout.mean_score over the run's steps.jsonl"; exit 1; };; esac
 case "$CONFIG" in *codex*)           # the Codex harness: its image, internal network and egress proxy must be there
-  export OFFICEQA_CODEX_IMAGE=${OFFICEQA_CODEX_IMAGE:-officeqa-codex:0.162.0}
+  case "$CONFIG" in
+    *_luna) export OFFICEQA_CODEX_IMAGE=${OFFICEQA_CODEX_IMAGE:-officeqa-codex:0.164.0}     # the machine's standalone Codex,
+            export OFFICEQA_CODEX_PROXY=${OFFICEQA_CODEX_PROXY:-http://oq-egress-chatgpt:3128};;   # the proxy to chatgpt.com only
+    *) export OFFICEQA_CODEX_IMAGE=${OFFICEQA_CODEX_IMAGE:-officeqa-codex:0.162.0};;
+  esac
   "$PY" ../utils/agent/codex_session.py --check "$("$PY" -c "import json; print(json.load(open('../utils/data.json'))['docs'])")" \
     || { echo "REFUSING: the Codex harness's container is not ready (see ../utils/agent/codex_session.py)"; exit 1; };; esac
 # hermit's options (--adapter, --no-probe) go before its overrides (key=value), whatever order they were given in.

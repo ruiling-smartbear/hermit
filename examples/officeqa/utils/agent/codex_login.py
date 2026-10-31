@@ -15,11 +15,11 @@ prints when it expires). Web search, apps, plugins and the browser and computer 
 
 The plan's usage is shared with the machine's own Codex. Every session reports the plan's usage in its CODEX_HOME's
 session log; `note_usage` keeps the latest report in OFFICEQA_CODEX_PLAN (default
-~/albz/officeqa-luna/plan.json). There is no cap of our own by default: `wait_for_plan` holds a new session back
-only while the file named by OFFICEQA_CODEX_PAUSE exists (default ~/albz/officeqa-luna/PAUSE), after a session was
-refused for the plan's limit (until the plan's window resets), or, if one is set, while the report is at or above
-`max_used()` percent of the plan's window (the file MAX_USED beside it, else OFFICEQA_CODEX_MAX_USED). A session
-refused for the plan's limit is reported by `limit_hit` and is run again after the wait, never scored.
+~/.cache/hermit/officeqa-codex-login/plan.json). There is no cap of our own by default: `wait_for_plan` holds a new
+session back only while the file named by OFFICEQA_CODEX_PAUSE exists (default PAUSE beside the report), after a
+session was refused for the plan's limit (until the plan's window resets), or, if one is set, while the report is at
+or above `max_used()` percent of the plan's window (the file MAX_USED beside it, else OFFICEQA_CODEX_MAX_USED). A
+session refused for the plan's limit is reported by `limit_hit` and is run again after the wait, never scored.
 
 The login also has a rate limit: past some number of sessions at once its backend answers 429, and Codex retries
 with backoff. A session of SkillOpt's harness has 180 s, so those waits become timeouts and wrong answers. `slot()`
@@ -43,8 +43,8 @@ import time
 
 LOGIN_URL = "https://chatgpt.com/backend-api/codex"
 AUTH = Path(os.path.expanduser(os.environ.get("OFFICEQA_CODEX_AUTH", "~/.codex/auth.json")))
-PLAN = Path(os.path.expanduser(os.environ.get("OFFICEQA_CODEX_PLAN", "~/albz/officeqa-luna/plan.json")))
-PAUSE = Path(os.path.expanduser(os.environ.get("OFFICEQA_CODEX_PAUSE", "~/albz/officeqa-luna/PAUSE")))
+PLAN = Path(os.path.expanduser(os.environ.get("OFFICEQA_CODEX_PLAN", "~/.cache/hermit/officeqa-codex-login/plan.json")))
+PAUSE = Path(os.path.expanduser(os.environ.get("OFFICEQA_CODEX_PAUSE", "~/.cache/hermit/officeqa-codex-login/PAUSE")))
 MAX_USED = float(os.environ.get("OFFICEQA_CODEX_MAX_USED", "inf"))    # a file MAX_USED beside PLAN overrides it
 # what reaches data outside the workspace: hosted web search, ChatGPT apps (connectors), plugins and their marketplace,
 # the browser and computer tools

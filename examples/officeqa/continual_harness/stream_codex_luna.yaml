@@ -1,0 +1,57 @@
+# Continual Harness in the paper's own setting on the Flash row with GPT-5.6-Luna (the README's second column):
+# stream_codex.yaml with the models changed and nothing else of the protocol. The acting model is Codex's built-in
+# provider on the machine's ChatGPT login (backend codexplan: no API key; each session gets a fresh copy of the login,
+# ../utils/agent/codex_login.py), and the Refiner is the same model through a relay that answers each chat-completions
+# call with one Codex session (backend codexrelay: `python examples/officeqa/utils/agent/codex_chat.py --port 3671`,
+# started first with the two variables below exported: its sessions use the same image and proxy). The image holds
+# the machine's own standalone Codex (OFFICEQA_CODEX_IMAGE=officeqa-codex:0.164.0,
+# ../utils/agent/docker/Dockerfile.standalone) and the egress proxy lets through chatgpt.com only
+# (OFFICEQA_CODEX_PROXY=http://oq-egress-chatgpt:3128). As stream_codex.yaml: make_seed.py first; the stream's accuracy
+# is the mean of the steps' rollout scores (steps.jsonl); no `hermit eval` follows.
+backends:
+  codexplan: {base_url: "https://chatgpt.com/backend-api/codex", key_required: false, api_key_env: null, apis: [chat, responses]}
+  codexrelay: {base_url: "http://127.0.0.1:3671/v1", key_required: false, api_key_env: null, apis: [chat]}
+data:
+  tasks: ../utils/tasks.jsonl
+  train: stream_s0.txt                 # upstream Harness²'s seed-0 order of ../utils/splits/test.txt
+  step_size: 1                         # one question per step
+  shuffle: false                       # the stream's own order
+task_info: ../utils/task-info/
+agent:
+  name: ../utils/agent/codex_agent.py:OfficeQACodexAgent
+  concurrency: 1
+  params:
+    model: codexplan/gpt-5.6-luna      # a backend at ChatGPT's Codex endpoint: the session runs on the login
+    effort: medium
+    timeout_s: 3600                    # one session's wall clock, as the Harness² stream
+    codex_dir: ~/.cache/hermit/officeqa-ch-codex-luna
+judge:
+  path: ../utils/judge.py
+template: continual-harness@1.0
+start_from: seed_adapter               # make_seed.py: SkillOpt's initial skill as AGENTS.md, G / K / M empty
+evolver:
+  name: continual_harness
+  params:
+    feedback: false                    # trajectory only: the paper's and Harness²'s label footing
+llm:                                   # the Refiner: GPT-5.6-Luna at medium effort, the acting model, one Codex session per call
+  model: codexrelay/gpt-5.6-luna
+  extra_body: {reasoning_effort: medium}
+  timeout: 3600                        # a Codex session answers more slowly than a chat completion
+sandbox:
+  enabled: true
+  network: restricted
+  allow: []
+  read: []
+  env: []
+  profiles:                  # the agent's role runs unconfined: it drives Docker (the daemon's socket, the sessions'
+    rollout: {enabled: false}   # homes under ~/.cache); each Codex session is in a container of its own (codex_session.py)
+trainer:
+  run_name: luna-ch-s0
+  output_dir: runs
+  tree_dir: runs/trees/luna-ch-s0
+  epochs: 1
+  save_freq: {steps: null, epochs: 1}
+  budget: {usd: null, tokens: null, hours: null}   # the plan has no price per token: nothing to cap in USD
+  call_timeout_min: 120                # one question's session (up to 60 min) and four Refiner calls
+eval:
+  repeats: 1                           # not used: the stream's own answers are the result
