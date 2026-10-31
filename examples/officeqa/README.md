@@ -75,13 +75,11 @@ through its launcher too, which writes the stream's order and starts the editors
 
 ### GPT-5.6-Luna with Codex CLI 0.164.0
 
-The same commands with each method's `run_codex_luna.yaml` (`stream_codex_luna.yaml` for the Continual Harness
-and ReHarness streams; `CONFIG=run_codex_luna.yaml` for Harness²'s launcher), its Flash-row config with the models
-changed and nothing else of the protocol. The acting model is Codex's built-in provider on the machine's ChatGPT
-login (`codex login` once, no API key: [`utils/agent/codex_login.py`](utils/agent/codex_login.py) gives each session
-a copy of the login and holds sessions while the plan refuses them), the learner is the same model behind a relay
-that answers each `llm` call with one Codex session ([`utils/agent/codex_chat.py`](utils/agent/codex_chat.py),
-started first), and Harness²'s editors are Codex sessions
+Each `*_luna.yaml` is the Flash-row config above with the models changed and nothing else. The acting model runs on
+Codex's built-in provider with the machine's ChatGPT login (`codex login` once, no API key:
+[`utils/agent/codex_login.py`](utils/agent/codex_login.py) gives each session a copy of the login), the learner is
+the same model behind a relay that answers each `llm` call with one Codex session
+([`utils/agent/codex_chat.py`](utils/agent/codex_chat.py)), and Harness²'s editors are Codex sessions
 ([`harness2_stream/codex_proposer.py`](harness2_stream/codex_proposer.py)). The image with the machine's own Codex
 and the egress proxy to chatgpt.com: the recipe's [A model on a ChatGPT login](../../docs/recipes/officeqa.md#a-model-on-a-chatgpt-login).
 
