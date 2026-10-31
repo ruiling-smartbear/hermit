@@ -59,10 +59,8 @@ An adapter's accuracy is `mean_score` in `<method>/runs/<run name>/eval/<selecto
 questions, one pass), where `<selector>` is `final`, `none`, `adapter` or a directory's name such as `seed_adapter`;
 `--adapter adapter` evaluates the trained adapter included in the folder. A stream has no test split: its number is
 the mean of `rollout.mean_score` over the steps of its run's `steps.jsonl` (step 0, the bootstrap, has none). A
-smoke on a few questions: the folder's `smoke_codex.yaml` (`smoke.yaml` in direct chat), after `hermit check
---config ...` ([walkthrough](../../docs/recipes/officeqa.md#check-train-evaluate)). The same commands with `run.yaml`
-(direct chat: SkillOpt's own rollout, GLM 5.3 as the learner, three passes) or `run_codex.yaml` (the Codex harness
-with that learner) give the recipe's [direct-chat table](../../docs/recipes/officeqa.md#results).
+smoke on a few questions: the folder's `smoke_codex.yaml`, after `hermit check --config ...`
+([walkthrough](../../docs/recipes/officeqa.md#check-train-evaluate)).
 
 ReHarness runs through its launcher: it puts the embedding model behind a loopback relay for the adapter's reader
 (whose sandbox has no keys), writes `reharness/seed_adapter/` and starts `hermit train`, `eval` or `check` on
