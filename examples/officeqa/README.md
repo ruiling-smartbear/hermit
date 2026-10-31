@@ -31,60 +31,73 @@ corpus (`utils/documents`, what the agent's sandbox is granted) to `utils/`.
 
 ## Run
 
+The two columns of [Results](#results) are two sets of configs: each method's `run_codex_flash.yaml` or
+`stream_codex.yaml` (GLM 5.3 Flash acting and learning) and its `run_codex_luna.yaml` or `stream_codex_luna.yaml`
+(GPT-5.6-Luna acting and learning), the same protocol with the models changed. Both run in the Codex harness, which
+needs Docker, set up once as in the [recipe](../../docs/recipes/officeqa.md#run-in-the-codex-harness).
+
+### GLM 5.3 Flash with Codex CLI 0.162.0
+
 ```bash
-hermit train --config examples/officeqa/gepa/run.yaml          # GEPA
-hermit train --config examples/officeqa/skillopt/run.yaml      # SkillOpt
-hermit eval  --config examples/officeqa/gepa/run.yaml     --adapter final                  # GEPA's skill
-hermit eval  --config examples/officeqa/skillopt/run.yaml --adapter final                  # SkillOpt's skill
-hermit eval  --config examples/officeqa/skillopt/run.yaml --adapter none                   # no skill
-hermit eval  --config examples/officeqa/skillopt/run.yaml --adapter ../utils/seed_adapter  # initial skill
-FIREWORKS_API_KEY=... WM_PORT=3601 examples/officeqa/reharness/launch.sh run        # ReHarness: the 50 as one stream
-FIREWORKS_API_KEY=... WM_PORT=3601 examples/officeqa/reharness/launch.sh run eval   # its bank on the 172, three passes
-FIREWORKS_API_KEY=... WM_PORT=3601 examples/officeqa/reharness/launch.sh stream     # the paper's protocol: the 172 as one stream
-python examples/officeqa/meta_harness_adapter/make_seed.py              # Meta-Harness Adapter, Codex harness only
-hermit train --config examples/officeqa/meta_harness_adapter/run.yaml   # six rounds of two candidates
+export OFFICEQA_CODEX_IMAGE=officeqa-codex:0.162.0
+hermit train --config examples/officeqa/gepa/run_codex_flash.yaml                                        # GEPA
+hermit train --config examples/officeqa/skillopt/run_codex_flash.yaml                                    # SkillOpt
+hermit eval  --config examples/officeqa/gepa/run_codex_flash.yaml     --adapter final                    # GEPA's skill
+hermit eval  --config examples/officeqa/skillopt/run_codex_flash.yaml --adapter final                    # SkillOpt's skill
+hermit eval  --config examples/officeqa/skillopt/run_codex_flash.yaml --adapter none                     # no skill
+hermit eval  --config examples/officeqa/skillopt/run_codex_flash.yaml --adapter ../utils/seed_adapter    # initial skill
+python examples/officeqa/meta_harness_adapter/make_seed.py                                               # Meta-Harness Adapter
+hermit train --config examples/officeqa/meta_harness_adapter/run.yaml                                    # six rounds of two candidates
 hermit eval  --config examples/officeqa/meta_harness_adapter/run.yaml --adapter final
+python examples/officeqa/continual_harness/make_seed.py                                                  # Continual Harness
+hermit train --config examples/officeqa/continual_harness/stream_codex.yaml                              # the 172 as one stream
+FIREWORKS_API_KEY=... WM_PORT=3601 examples/officeqa/reharness/launch.sh stream_codex                    # ReHarness: the same stream
+FIREWORKS_API_KEY=... SEED=0 WM_PORT=3591 examples/officeqa/harness2_stream/launch.sh                    # Harness²: the same stream
 ```
 
 An adapter's accuracy is `mean_score` in `<method>/runs/<run name>/eval/<selector>/summary.json` (172 test
-questions, three passes each), where `<selector>` is `final`, `none`, `adapter` or a directory's name such as
-`seed_adapter`; `--adapter adapter` evaluates the trained adapter included in the folder. A smoke on a few
-questions: the folder's `smoke.yaml`, after `hermit check --config ...`
-([walkthrough](../../docs/recipes/officeqa.md#check-train-evaluate)). The Codex harness: the same commands with
-`run_codex.yaml` and `smoke_codex.yaml`, the folder's configs with `agent.params.harness: codex` and no budget.
+questions, one pass), where `<selector>` is `final`, `none`, `adapter` or a directory's name such as `seed_adapter`;
+`--adapter adapter` evaluates the trained adapter included in the folder. A stream has no test split: its number is
+the mean of `rollout.mean_score` over the steps of its run's `steps.jsonl` (step 0, the bootstrap, has none). A
+smoke on a few questions: the folder's `smoke_codex.yaml` (`smoke.yaml` in direct chat), after `hermit check
+--config ...` ([walkthrough](../../docs/recipes/officeqa.md#check-train-evaluate)). The same commands with `run.yaml`
+(direct chat: SkillOpt's own rollout, GLM 5.3 as the learner, three passes) or `run_codex.yaml` (the Codex harness
+with that learner) give the recipe's [direct-chat table](../../docs/recipes/officeqa.md#results).
 
 ReHarness runs through its launcher: it puts the embedding model behind a loopback relay for the adapter's reader
 (whose sandbox has no keys), writes `reharness/seed_adapter/` and starts `hermit train`, `eval` or `check` on
 `reharness/<config>.yaml`; `launch.sh smoke check --no-probe`, `launch.sh smoke` and `launch.sh smoke eval` are its
-check and smoke. `run.yaml` is evaluated like the other methods (`reharness/runs/paper-reharness/eval/final/`);
-`stream.yaml` has no test split, and its number is the mean of `rollout.mean_score` over the steps of
-`reharness/runs/stream-reharness/steps.jsonl` (step 0, the bootstrap, has none). The
-[recipe](../../docs/recipes/officeqa.md#reharness) explains the two protocols. Meta-Harness Adapter runs in the Codex
-harness only (`OFFICEQA_CODEX_IMAGE` set as for the other Codex configs);
+check and smoke, `launch.sh run` and `launch.sh run eval` the train/test split (the 50 as one stream, then its bank
+on the 172). The [recipe](../../docs/recipes/officeqa.md#reharness) explains the two protocols. Harness² runs
+through its launcher too, which writes the stream's order and starts the editors' wire meter
+([`harness2_stream/`](harness2_stream/)). Meta-Harness Adapter runs in the Codex harness only;
 [`meta_harness_adapter/`](meta_harness_adapter/) describes its configs and records.
 
-The GPT-5.6-Luna column of Results: the same commands with each method's `run_codex_luna.yaml`
-(`stream_codex_luna.yaml` for the Continual Harness and ReHarness streams), its Flash-row config with the models
+### GPT-5.6-Luna with Codex CLI 0.164.0
+
+The same commands with each method's `run_codex_luna.yaml` (`stream_codex_luna.yaml` for the Continual Harness
+and ReHarness streams; `CONFIG=run_codex_luna.yaml` for Harness²'s launcher), its Flash-row config with the models
 changed and nothing else of the protocol. The acting model is Codex's built-in provider on the machine's ChatGPT
-login (backend `codexplan`: `codex login` once, no API key; [`utils/agent/codex_login.py`](utils/agent/codex_login.py)
-gives each session a fresh copy of the login, reads the plan's usage, holds sessions while a pause file exists and
-runs a session the plan refused again), and the learner is the same model behind a relay that answers each `llm`
-call with one Codex session ([`utils/agent/codex_chat.py`](utils/agent/codex_chat.py), backend `codexrelay`, started
-first); Harness²'s editors are Codex sessions
-([`harness2_stream/codex_proposer.py`](harness2_stream/codex_proposer.py)). The image holds the machine's own
-standalone Codex and the egress proxy lets through chatgpt.com only
-([recipe](../../docs/recipes/officeqa.md#a-model-on-a-chatgpt-login)):
+login (`codex login` once, no API key: [`utils/agent/codex_login.py`](utils/agent/codex_login.py) gives each session
+a copy of the login and holds sessions while the plan refuses them), the learner is the same model behind a relay
+that answers each `llm` call with one Codex session ([`utils/agent/codex_chat.py`](utils/agent/codex_chat.py),
+started first), and Harness²'s editors are Codex sessions
+([`harness2_stream/codex_proposer.py`](harness2_stream/codex_proposer.py)). The image with the machine's own Codex
+and the egress proxy to chatgpt.com: the recipe's [A model on a ChatGPT login](../../docs/recipes/officeqa.md#a-model-on-a-chatgpt-login).
 
 ```bash
 export OFFICEQA_CODEX_IMAGE=officeqa-codex:0.164.0 OFFICEQA_CODEX_PROXY=http://oq-egress-chatgpt:3128
-python examples/officeqa/utils/agent/codex_chat.py --port 3671 &                 # the learners' relay, same image and proxy
-hermit eval  --config examples/officeqa/skillopt/run_codex_luna.yaml --adapter none                   # no skill
-hermit eval  --config examples/officeqa/skillopt/run_codex_luna.yaml --adapter ../utils/seed_adapter  # initial skill
-hermit train --config examples/officeqa/gepa/run_codex_luna.yaml           # then hermit eval ... --adapter final, as above
-hermit train --config examples/officeqa/skillopt/run_codex_luna.yaml
-python examples/officeqa/continual_harness/make_seed.py && hermit train --config examples/officeqa/continual_harness/stream_codex_luna.yaml
-CONFIG=run_codex_luna.yaml examples/officeqa/harness2_stream/launch.sh                # Harness²: the editors as Codex sessions
-FIREWORKS_API_KEY=... WM_PORT=3601 examples/officeqa/reharness/launch.sh stream_codex_luna   # ReHarness: embeddings on Fireworks
+python examples/officeqa/utils/agent/codex_chat.py --port 3671 &                                         # the learners' relay
+hermit train --config examples/officeqa/gepa/run_codex_luna.yaml                                         # GEPA
+hermit train --config examples/officeqa/skillopt/run_codex_luna.yaml                                     # SkillOpt
+hermit eval  --config examples/officeqa/gepa/run_codex_luna.yaml     --adapter final                     # GEPA's skill
+hermit eval  --config examples/officeqa/skillopt/run_codex_luna.yaml --adapter final                     # SkillOpt's skill
+hermit eval  --config examples/officeqa/skillopt/run_codex_luna.yaml --adapter none                      # no skill
+hermit eval  --config examples/officeqa/skillopt/run_codex_luna.yaml --adapter ../utils/seed_adapter     # initial skill
+python examples/officeqa/continual_harness/make_seed.py                                                  # Continual Harness
+hermit train --config examples/officeqa/continual_harness/stream_codex_luna.yaml                         # the 172 as one stream
+FIREWORKS_API_KEY=... WM_PORT=3601 examples/officeqa/reharness/launch.sh stream_codex_luna               # ReHarness (embeddings on Fireworks)
+CONFIG=run_codex_luna.yaml examples/officeqa/harness2_stream/launch.sh                                   # Harness²: the editors as Codex sessions
 ```
 
 ## Results
