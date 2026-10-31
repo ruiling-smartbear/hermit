@@ -89,20 +89,22 @@ FIREWORKS_API_KEY=... WM_PORT=3601 examples/officeqa/reharness/launch.sh stream_
 
 ## Results
 
-Agent and learner, one per column: GLM 5.3 Flash (reasoning effort medium) with Codex CLI 0.162.0, or GPT-5.6-Luna
-(reasoning effort medium) with Codex CLI 0.164.0 on a ChatGPT login; one container per session. Each evaluation makes
-one pass over the 172 test questions.
-
-| Method | GLM 5.3 Flash, Codex 0.162.0 | GPT-5.6-Luna, Codex 0.164.0 |
-|---|---|---|
-| no skill | 0.541 | 0.308 |
-| initial skill | 0.576 | 0.360 |
-| **GEPA** | 0.580 | 0.600 |
-| **SkillOpt** | 0.600 | 0.546 |
-| **Meta-Harness Adapter** | 0.640 | not run |
-| **Continual Harness** | 0.634 | 0.477 |
-| **ReHarness** | 0.634 | 0.517 |
-| **Harness²** | 0.651 | 0.611 |
+<table>
+<thead>
+<tr><th rowspan="2">Method</th><th colspan="2">Agent and learner (reasoning effort medium), one container per session, one pass over the 172 test questions</th></tr>
+<tr><th>GLM 5.3 Flash<br>Codex CLI 0.162.0</th><th>GPT-5.6-Luna<br>Codex CLI 0.164.0, ChatGPT login</th></tr>
+</thead>
+<tbody>
+<tr><td>no skill</td><td>0.541</td><td>0.308</td></tr>
+<tr><td>initial skill</td><td>0.576</td><td>0.360</td></tr>
+<tr><td><b>GEPA</b></td><td>0.580</td><td>0.600</td></tr>
+<tr><td><b>SkillOpt</b></td><td>0.600</td><td>0.546</td></tr>
+<tr><td><b>Meta-Harness Adapter</b></td><td>0.640</td><td>not run</td></tr>
+<tr><td><b>Continual Harness</b></td><td>0.634</td><td>0.477</td></tr>
+<tr><td><b>ReHarness</b></td><td>0.634</td><td>0.517</td></tr>
+<tr><td><b>Harness²</b></td><td>0.651</td><td>0.611</td></tr>
+</tbody>
+</table>
 
 Results use two settings:
 
