@@ -91,8 +91,8 @@ FIREWORKS_API_KEY=... WM_PORT=3601 examples/officeqa/reharness/launch.sh stream_
 
 <table>
 <thead>
-<tr><th rowspan="2">Method</th><th colspan="2">Agent and learner (reasoning effort medium), one container per session, one pass over the 172 test questions</th></tr>
-<tr><th>GLM 5.3 Flash<br>Codex CLI 0.162.0</th><th>GPT-5.6-Luna<br>Codex CLI 0.164.0, ChatGPT login</th></tr>
+<tr><th rowspan="2">Method</th><th colspan="2">Accuracy</th></tr>
+<tr><th>GLM 5.3 Flash</th><th>GPT-5.6-Luna</th></tr>
 </thead>
 <tbody>
 <tr><td>no skill</td><td>0.541</td><td>0.308</td></tr>
