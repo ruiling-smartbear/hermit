@@ -36,7 +36,7 @@ The two columns of [Results](#results) are two sets of configs: each method's `r
 (GPT-5.6-Luna acting and learning), the same protocol with the models changed. Both run in the Codex harness, which
 needs Docker, set up once as in the [recipe](../../docs/recipes/officeqa.md#run-in-the-codex-harness).
 
-### GLM 5.3 Flash with Codex CLI 0.162.0
+#### GLM 5.3 Flash with Codex CLI 0.162.0
 
 ```bash
 export OFFICEQA_CODEX_IMAGE=officeqa-codex:0.162.0
@@ -73,7 +73,7 @@ through its launcher too, which writes the stream's order and starts the editors
 ([`harness2_stream/`](harness2_stream/)). Meta-Harness Adapter runs in the Codex harness only;
 [`meta_harness_adapter/`](meta_harness_adapter/) describes its configs and records.
 
-### GPT-5.6-Luna with Codex CLI 0.164.0
+#### GPT-5.6-Luna with Codex CLI 0.164.0
 
 Each `*_luna.yaml` is the Flash-row config above with the models changed and nothing else. The acting model runs on
 Codex's built-in provider with the machine's ChatGPT login (`codex login` once, no API key:
