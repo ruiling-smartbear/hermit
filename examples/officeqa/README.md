@@ -91,33 +91,20 @@ CONFIG=run_codex_luna.yaml examples/officeqa/harness2_stream/launch.sh          
 
 <table>
 <thead>
-<tr><th rowspan="2">Method</th><th colspan="3">Accuracy</th></tr>
-<tr><th>GLM 5.3 Flash</th><th>GPT-5.6-Luna</th><th>GPT-5.6-Luna, the authors' code</th></tr>
+<tr><th rowspan="2">Method</th><th colspan="2">Accuracy</th></tr>
+<tr><th>GLM 5.3 Flash</th><th>GPT-5.6-Luna</th></tr>
 </thead>
 <tbody>
-<tr><td>no skill</td><td>0.541</td><td>0.308</td><td></td></tr>
-<tr><td>initial skill</td><td>0.576</td><td>0.360</td><td></td></tr>
-<tr><td><b>GEPA</b></td><td>0.580</td><td>0.600</td><td>0.593</td></tr>
-<tr><td><b>SkillOpt</b></td><td>0.600</td><td>0.546</td><td>0.483</td></tr>
-<tr><td><b>Meta-Harness Adapter</b></td><td>0.640</td><td>not run</td><td></td></tr>
-<tr><td><b>Continual Harness</b></td><td>0.634</td><td>0.477</td><td>0.500</td></tr>
-<tr><td><b>ReHarness</b></td><td>0.634</td><td>0.517</td><td>no code released</td></tr>
-<tr><td><b>Harness²</b></td><td>0.651</td><td>0.611</td><td>0.611 (replay)</td></tr>
+<tr><td>no skill</td><td>0.541</td><td>0.308</td></tr>
+<tr><td>initial skill</td><td>0.576</td><td>0.360</td></tr>
+<tr><td><b>GEPA</b></td><td>0.580</td><td>0.600</td></tr>
+<tr><td><b>SkillOpt</b></td><td>0.600</td><td>0.546</td></tr>
+<tr><td><b>Meta-Harness Adapter</b></td><td>0.640</td><td>not run</td></tr>
+<tr><td><b>Continual Harness</b></td><td>0.634</td><td>0.477</td></tr>
+<tr><td><b>ReHarness</b></td><td>0.634</td><td>0.517</td></tr>
+<tr><td><b>Harness²</b></td><td>0.651</td><td>0.611</td></tr>
 </tbody>
 </table>
-
-The third column checks the adapters: the GPT-5.6-Luna setting once more, with the method's own code from its
-authors' repository doing the learning ([gepa-ai/gepa](https://github.com/gepa-ai/gepa) `gepa.optimize`,
-[microsoft/SkillOpt](https://github.com/microsoft/SkillOpt) `skillopt-train` with its own OfficeQA configs and Codex
-harness, [sethkarten/continual-harness](https://github.com/sethkarten/continual-harness)'s Refiner driven as its
-agent drives it, every 25 steps over a 50-step window) around the same data, split, seed skill, judge and acting
-agent; one run each. Paired by question, GEPA is −0.7 points from the adapter's mean [−5.2, +3.8] and Continual
-Harness +2.3 [−3.5, +8.1]: within one run's noise, with the adapter's four GEPA trainings spanning 0.581–0.622.
-SkillOpt is −6.4 [−11.9, −1.2] on one training, whose evaluation of the initial skill was also 4 points below the
-adapter's (0.320, more sessions at the 180 s cap), and whose gain over that skill matches the adapter's; one training
-does not settle it. Harness²'s adapter already runs the authors' code
-([google-research/harness2](https://github.com/google-research/harness2)); replaying its 172 recorded steps under
-the authors' own driver reproduces every decision and the same score.
 
 Results use two settings:
 
