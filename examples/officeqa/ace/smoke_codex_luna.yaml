@@ -1,0 +1,63 @@
+# Smoke of run_codex_luna.yaml: 4 training questions one at a time, 2 validation questions, 4 test questions, one
+# epoch, one retry round; shows that ACE's levers work (bullets named, counters moving, bullets added), not a
+# measurement. As run_codex_luna.yaml: GPT-5.6-Luna at medium effort
+# acting and learning on the machine's ChatGPT login (a Codex plan; no API key). The acting model is Codex's built-in
+# provider on the login (backend codexplan; each session gets a fresh copy of the login, ../utils/agent/codex_login.py),
+# and ACE's Reflector and Curator call the same model through the relay that answers each chat-completions call with
+# one Codex session (backend codexrelay: `python examples/officeqa/utils/agent/codex_chat.py --port 3671`, started
+# first). The image holds the machine's own standalone Codex (OFFICEQA_CODEX_IMAGE=officeqa-codex:0.164.0,
+# ../utils/agent/docker/Dockerfile.standalone) and the egress proxy lets through chatgpt.com only
+# (OFFICEQA_CODEX_PROXY=http://oq-egress-chatgpt:3128): the recipe's "A model on a ChatGPT login".
+# A plan has no per-token price: costs are recorded as unknown, so the hard budget is in hours.
+backends:
+  codexplan: {base_url: "https://chatgpt.com/backend-api/codex", key_required: false, api_key_env: null, apis: [chat, responses]}
+  codexrelay: {base_url: "http://127.0.0.1:3671/v1", key_required: false, api_key_env: null, apis: [chat]}
+data:
+  tasks: ../utils/tasks.jsonl
+  train: ../utils/splits/smoke_train.txt
+  val: ../utils/splits/smoke_val.txt
+  test: ../utils/splits/smoke_test.txt
+  step_size: 1                         # upstream's per-sample loop
+  shuffle_seed: 42
+task_info: ../utils/task-info/
+agent:
+  name: ../utils/agent/agent.py:OfficeQAAgent
+  params:
+    harness: codex
+    model: codexplan/gpt-5.6-luna      # a backend at ChatGPT's Codex endpoint: the session runs on the login (agent.py)
+    codex_dir: ~/.cache/hermit/officeqa-ace-luna
+  concurrency: 2
+judge:
+  path: ../utils/judge.py
+template: ace@1.0
+start_from: seed_adapter               # make_seed.py writes it from ../utils/seed_adapter
+evolver:
+  name: ace
+  params:
+    feedback: true
+    max_num_rounds: 1
+    total_samples: 4
+    val_every: epoch
+    score_initial: true
+llm:                                   # the Reflector and the Curator: GPT-5.6-Luna at medium effort, one Codex session per call
+  model: codexrelay/gpt-5.6-luna
+  extra_body: {reasoning_effort: medium}
+  timeout: 3600                        # a Codex session answers more slowly than a chat completion
+sandbox:
+  enabled: true
+  enforce: best_effort                 # macOS: no bubblewrap; the Codex sessions stay in Docker
+  network: restricted
+  allow: []                            # the Evolver's own model endpoint is always reachable
+  read: []
+  env: []
+  profiles:                            # the agent's role runs unconfined: it drives Docker; each Codex session is in a
+    rollout: {enabled: false}          # container of its own (codex_sandbox.py)
+trainer:
+  run_name: smoke-luna-ace
+  output_dir: runs
+  tree_dir: runs/trees/smoke-luna-ace
+  epochs: 1
+  budget: {usd: null, hours: 2}
+  call_timeout_min: 90
+eval:
+  repeats: 1

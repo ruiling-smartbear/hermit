@@ -10,7 +10,8 @@ with Meta-Harness Adapter whole adapters written by a coding-agent proposer (Cod
 with no skill and with SkillOpt's initial skill, in both of the paper's harnesses: direct chat, with read and grep
 tools limited to the question's source files, and Codex, a `codex exec` session with the whole corpus. The same
 methods, Meta-Harness Adapter aside, are run a second time with Codex and GPT-5.6-Luna acting and learning on a
-ChatGPT login, the second column of the [Results](#results) table.
+ChatGPT login, the second column of the [Results](#results) table, where [ACE](ace/) also grows a playbook of
+bullets after that skill.
 
 ## Setup
 
@@ -85,6 +86,9 @@ python examples/officeqa/continual_harness/make_seed.py                         
 hermit train --config examples/officeqa/continual_harness/stream_codex_luna.yaml                         # the 172 as one stream
 FIREWORKS_API_KEY=... WM_PORT=3601 examples/officeqa/reharness/launch.sh stream_codex_luna               # ReHarness (embeddings on Fireworks)
 CONFIG=run_codex_luna.yaml examples/officeqa/harness2_stream/launch.sh                                   # Harness²: the editors as Codex sessions
+python examples/officeqa/ace/make_seed.py                                                                # ACE
+hermit train --config examples/officeqa/ace/run_codex_luna.yaml                                          # 50 training questions, two epochs
+hermit eval  --config examples/officeqa/ace/run_codex_luna.yaml      --adapter final                     # ACE's playbook
 ```
 
 ## Results
@@ -103,6 +107,7 @@ CONFIG=run_codex_luna.yaml examples/officeqa/harness2_stream/launch.sh          
 <tr><td><b>Continual Harness</b></td><td>0.634</td><td>0.477</td></tr>
 <tr><td><b>ReHarness</b></td><td>0.634</td><td>0.517</td></tr>
 <tr><td><b>Harness²</b></td><td>0.651</td><td>0.611</td></tr>
+<tr><td><b>ACE</b></td><td>not run</td><td>0.521*</td></tr>
 </tbody>
 </table>
 
@@ -154,6 +159,10 @@ the column. What differs from the GLM
 column, the intervals, the paired differences and the check: the
 [recipe](../../docs/recipes/officeqa.md#the-flash-row-with-gpt-56-luna); the `*_luna.yaml` configs run it ([Run](#run)).
 
+\* ACE: one training and three passes per evaluation, made with Codex 0.165.0 before its configs moved onto this
+setting's login code; its own no-skill and initial-skill evaluations scored 0.310 and 0.384
+([recipe](../../docs/recipes/officeqa.md#ace)).
+
 ## Code
 
 ```text
@@ -176,4 +185,7 @@ reharness/          ReHarness: stream_codex.yaml (the 172 test questions as one 
                     run_codex_flash.yaml (the 50 as one stream, then the frozen bank on the 172), the direct-chat
                     smoke.yaml, run.yaml and stream.yaml; launch.sh starts the embedding relay and the command;
                     make_seed.py writes seed_adapter/, the initial skill over the reharness template
+ace/                ACE: run_codex_luna.yaml and smoke_codex_luna.yaml in the GPT-5.6-Luna setting; make_seed.py
+                    writes seed_adapter/, the initial skill with ACE's empty playbook; adapter/ is the measured
+                    run's final playbook, with its .hermit/CARD.md
 ```

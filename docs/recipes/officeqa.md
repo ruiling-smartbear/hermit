@@ -373,6 +373,59 @@ acting sessions are containers of their own, as for the other Codex-harness meth
 `<run>/workspace/state/evolution_summary.jsonl` lists every candidate with its hypothesis, base and mean on the
 search set. The result is in [the Flash row](#the-flash-row).
 
+## ACE
+
+[ACE](https://arxiv.org/abs/2510.04618) (Zhang et al., ICLR 2026) grows a playbook of bullets with helpful and
+harmful counters, one training question at a time: the acting agent names the bullets it used, a Reflector tags
+them and diagnoses the attempt (a wrong answer is run again with the reflection, up to three rounds), and a Curator
+adds bullets ([ACE](../methods/ace.md) has its controls and its differences from the authors' code).
+`examples/officeqa/ace/` starts from SkillOpt's initial skill followed by an empty playbook (`make_seed.py` writes
+`seed_adapter/`) on the `ace` template, with `data.step_size: 1`, two epochs over the 50 training questions and
+validation at each epoch's end; `final` is the playbook with the best validation score.
+
+| Config | Epochs | `run_name` | The number |
+|---|---|---|---|
+| `ace/smoke_codex_luna.yaml` | 1 | `smoke-luna-ace` | none: a smoke, 4 training questions |
+| `ace/run_codex_luna.yaml` | 2 | `luna-ace` | `mean_score` in `ace/runs/luna-ace/eval/final/summary.json` |
+
+Both are in [the GPT-5.6-Luna setting](#the-flash-row-with-gpt-56-luna): the acting sessions on the machine's ChatGPT
+login, the Reflector and Curator the run's `llm` through the Codex relay. The run below is one training with its four
+evaluations, made before the configs moved onto that setting's login code: the same model and effort, the acting
+sessions on the login through the example's earlier agent code, and each Reflector and Curator call one Codex
+session in a container of its own, as the relay runs it. It differs from the setting's column in its Codex (0.165.0,
+not 0.164.0) and its three passes per evaluation; its no-skill and initial-skill scores, 0.310 and 0.384, are near
+the column's 0.308 and 0.360.
+
+- Models: `gpt-5.6-luna` acting and learning, reasoning effort medium, on a ChatGPT login.
+- Harness: Codex 0.165.0 (`officeqa-codex:0.165.0`), a container per session, four side by side; each Reflector
+  and Curator session in a container of its own.
+- Data: the 50 / 24 / 172 split of SkillOpt `79124b3`, `data.shuffle_seed: 42`; `officeqa_full.csv` with SHA-256
+  `b5eb1ce0cb34…`, eight items drifted from the split ([Reproduction limits](#reproduction-limits)).
+- Run: `run_codex_login.yaml` of `25f33d5` with `trainer.run_name=login-codex-ace-luna56`,
+  `trainer.tree_dir=runs/trees/login-codex-ace-luna56` and `agent.params.codex_dir=~/.cache/hermit/officeqa-ace-luna56`.
+  The training's acting sessions kept Codex's home on disk, the evaluations' in the container's memory, as in that
+  commit. The training stopped once on a full disk and resumed after step 86 (`trainer.resume_mode: auto`).
+- Spending: a subscription has no per-token price. Training 1.6 h: 2.47 M tokens of training sessions, 5.22 M of
+  Reflector and Curator sessions, 2.61 M of retry and validation sessions. The evaluations, about 1 h each, ran one
+  after another within four hours, beside another run on the same login.
+
+| Adapter | accuracy, three passes | − the initial skill, points |
+|---|---|---|
+| none | 0.310 | −7.4 [−11.2, −3.7] |
+| the initial skill: SkillOpt's, with ACE's empty playbook (`seed_adapter`) | 0.384 | |
+| `final`, best validation (epoch 1, 91 bullets; [card](https://github.com/Infini-AI-Lab/hermit/blob/main/examples/officeqa/ace/adapter/.hermit/CARD.md)) | 0.521 | **+13.8** [+8.5, +19.0] |
+| the last playbook (`workspace/state/last_adapter`, 109 bullets) | 0.529 | **+14.5** [+10.1, +19.2] |
+
+Paired per question, 95% bootstrap intervals; bold where the interval lies above zero.
+
+- The last playbook and the validation choice are level: +0.8 [−2.7, +4.5] points, 22 questions better and 22
+  worse. Validation scored 0.583 after epoch 1 and 0.500 after epoch 2: 24 questions do not separate them.
+- The agent names the bullets it used on one line of its final message: 46 of the 100 training samples named at
+  least one, 54 wrote `none`; the 63 citations all name bullets the playbook had, no bullet more than three times.
+- An earlier run on `gpt-6-luna` (`login-codex-ace-v2`, 29 October) scored 0.223 without an adapter, 0.314 with the
+  initial skill, 0.440 `final` and 0.519 with the last playbook. Another model and another day: the service drifts,
+  so only evaluations made together are compared.
+
 ## Outputs and scoring
 
 A run's records are under `examples/officeqa/<method>/runs/<run name>/` (`<run>` below):
@@ -695,11 +748,14 @@ gains over the reference execution overlap GLM's intervals: they cannot be calle
 ## Included adapters
 
 `examples/officeqa/gepa/adapter/` and `examples/officeqa/skillopt/adapter/` are the skills `gepa/run.yaml` and
-`skillopt/run.yaml` trained in direct chat. Evaluate them with a directory selector:
+`skillopt/run.yaml` trained in direct chat. `examples/officeqa/ace/adapter/` is the `final` playbook of
+`ace/run_codex_luna.yaml`'s measured run ([ACE](#ace)), its card with the run's settings and test score. Evaluate them with a
+directory selector:
 
 ```bash
 hermit eval --config examples/officeqa/gepa/run.yaml --adapter adapter
 hermit eval --config examples/officeqa/skillopt/run.yaml --adapter adapter
+hermit eval --config examples/officeqa/ace/run_codex_luna.yaml --adapter adapter
 ```
 
 Numbers they copied from training answers are replaced by made-up numbers of the same form, so their cards' scores
