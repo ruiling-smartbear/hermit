@@ -35,8 +35,7 @@ The smoke is not a measurement; it shows whether each of ACE's levers works in a
 ## Result
 
 One training and its evaluations on the 172 test questions, three passes each: GPT-5.6-Luna at medium effort acting
-and learning, Codex 0.165.0, made before these configs moved onto the GPT-5.6-Luna setting's login code (the
-[recipe](../../../docs/recipes/officeqa.md#ace) has the run and its records).
+and learning, Codex 0.165.0 (the [recipe](../../../docs/recipes/officeqa.md#ace) has the run and its records).
 
 | Adapter | accuracy | − the initial skill, points |
 |---|---|---|

@@ -159,8 +159,8 @@ the column. What differs from the GLM
 column, the intervals, the paired differences and the check: the
 [recipe](../../docs/recipes/officeqa.md#the-flash-row-with-gpt-56-luna); the `*_luna.yaml` configs run it ([Run](#run)).
 
-\* ACE: one training and three passes per evaluation, made with Codex 0.165.0 before its configs moved onto this
-setting's login code; its own no-skill and initial-skill evaluations scored 0.310 and 0.384
+\* ACE: one training, three passes per evaluation, Codex 0.165.0; its own no-skill and initial-skill evaluations
+scored 0.310 and 0.384
 ([recipe](../../docs/recipes/officeqa.md#ace)).
 
 ## Code

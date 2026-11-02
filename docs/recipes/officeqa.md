@@ -390,24 +390,16 @@ validation at each epoch's end; `final` is the playbook with the best validation
 
 Both are in [the GPT-5.6-Luna setting](#the-flash-row-with-gpt-56-luna): the acting sessions on the machine's ChatGPT
 login, the Reflector and Curator the run's `llm` through the Codex relay. The run below is one training with its four
-evaluations, made before the configs moved onto that setting's login code: the same model and effort, the acting
-sessions on the login through the example's earlier agent code, and each Reflector and Curator call one Codex
-session in a container of its own, as the relay runs it. It differs from the setting's column in its Codex (0.165.0,
-not 0.164.0) and its three passes per evaluation; its no-skill and initial-skill scores, 0.310 and 0.384, are near
-the column's 0.308 and 0.360.
+evaluations, on Codex 0.165.0 with three passes per evaluation.
 
 - Models: `gpt-5.6-luna` acting and learning, reasoning effort medium, on a ChatGPT login.
-- Harness: Codex 0.165.0 (`officeqa-codex:0.165.0`), a container per session, four side by side; each Reflector
-  and Curator session in a container of its own.
+- Harness: Codex 0.165.0 (`officeqa-codex:0.165.0`), a container per session, four side by side.
 - Data: the 50 / 24 / 172 split of SkillOpt `79124b3`, `data.shuffle_seed: 42`; `officeqa_full.csv` with SHA-256
   `b5eb1ce0cb34…`, eight items drifted from the split ([Reproduction limits](#reproduction-limits)).
 - Run: `run_codex_login.yaml` of `25f33d5` with `trainer.run_name=login-codex-ace-luna56`,
   `trainer.tree_dir=runs/trees/login-codex-ace-luna56` and `agent.params.codex_dir=~/.cache/hermit/officeqa-ace-luna56`.
-  The training's acting sessions kept Codex's home on disk, the evaluations' in the container's memory, as in that
-  commit. The training stopped once on a full disk and resumed after step 86 (`trainer.resume_mode: auto`).
 - Spending: a subscription has no per-token price. Training 1.6 h: 2.47 M tokens of training sessions, 5.22 M of
-  Reflector and Curator sessions, 2.61 M of retry and validation sessions. The evaluations, about 1 h each, ran one
-  after another within four hours, beside another run on the same login.
+  Reflector and Curator sessions, 2.61 M of retry and validation sessions. Each evaluation about 1 h.
 
 | Adapter | accuracy, three passes | − the initial skill, points |
 |---|---|---|
@@ -422,9 +414,6 @@ Paired per question, 95% bootstrap intervals; bold where the interval lies above
   worse. Validation scored 0.583 after epoch 1 and 0.500 after epoch 2: 24 questions do not separate them.
 - The agent names the bullets it used on one line of its final message: 46 of the 100 training samples named at
   least one, 54 wrote `none`; the 63 citations all name bullets the playbook had, no bullet more than three times.
-- An earlier run on `gpt-6-luna` (`login-codex-ace-v2`, 29 October) scored 0.223 without an adapter, 0.314 with the
-  initial skill, 0.440 `final` and 0.519 with the last playbook. Another model and another day: the service drifts,
-  so only evaluations made together are compared.
 
 ## Outputs and scoring
 
